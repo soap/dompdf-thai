@@ -1,45 +1,87 @@
 name: run-tests
-
+# GithHub Actions Workflow generated with Ghygen
+# Original configuration: https://ghygen.hi-folks.dev?code=02c5481e2b9bcc8d94a8e9d3a99b71bb
 on:
-    push:
-        branches: [main]
-    pull_request:
-        branches: [main]
-
+  push:
+    branches:
+      - main
+      - develop
+      - features/**
+  pull_request:
+    branches:
+      - main
+      - develop
 jobs:
-    test:
-        runs-on: ${{ matrix.os }}
-        strategy:
-            fail-fast: true
-            matrix:
-                os: [ubuntu-latest, windows-latest]
-                php: [7.4, 8.0, 8.1]
-                laravel: [8.*, 9.*, 10.*]
-                stability: [prefer-lowest, prefer-stable]
-                include:
-                    - laravel: 8.*
-                      testbench: ^6.6
+  laravel-tests:
+    runs-on: ubuntu-latest
 
-        name: P${{ matrix.php }} - L${{ matrix.laravel }} - ${{ matrix.stability }} - ${{ matrix.os }}
+    strategy:
+      matrix:
+        operating-system: [ubuntu-latest]
+        php-versions: [ '8.1','8.0','7.4' ]
+        dependency-stability: [ 'prefer-none' ]
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v2
+        laravel: [ '10.*','9.*','8.*' ]
+        include:
+          - laravel:  10.*
+            testbench: 8.*
+          - laravel:  9.*
+            testbench: 7.*
+          - laravel:  8.*
+            testbench: 6.*
 
-            - name: Setup PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: ${{ matrix.php }}
-                  extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
-                  coverage: none
+    name: P${{ matrix.php-versions }} - L${{ matrix.laravel }} - ${{ matrix.dependency-stability }} - ${{ matrix.operating-system}}
 
-            - name: Setup problem matchers
-              run: |
-                  echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-                  echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
-            - name: Install dependencies
-              run: |
-                  composer require "laravel/framework:${{ matrix.laravel }}" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update
-                  composer update --${{ matrix.stability }} --prefer-dist --no-interaction
-            - name: Execute tests
-              run: vendor/bin/phpunit
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install PHP versions
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-versions }}
+    - name: Get Composer Cache Directory 2
+      id: composer-cache
+      run: |
+        echo "::set-output name=dir::$(composer config cache-files-dir)"
+    - uses: actions/cache@v3
+      id: actions-cache
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-
+    - name: Cache PHP dependencies
+      uses: actions/cache@v3
+      id: vendor-cache
+      with:
+        path: vendor
+        key: ${{ runner.OS }}-build-${{ hashFiles('**/composer.lock') }}
+    - name: Install Laravel Dependencies
+      run: |
+        composer require "laravel/framework:${{ matrix.laravel }}" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update
+        composer update --${{ matrix.dependency-stability }} --prefer-dist --no-interaction --no-suggest
+
+    - name: Update Dependencies with latest stable
+      if: matrix.dependency-stability == 'prefer-stable'
+      run: composer update --prefer-stable
+    - name: Update Dependencies with lowest stable
+      if: matrix.dependency-stability == 'prefer-lowest'
+      run: composer update --prefer-stable --prefer-lowest
+
+
+    - name: Show dir
+      run: pwd
+    - name: PHP Version
+      run: php --version
+
+# Code quality
+    - name: Execute tests (Unit and Feature tests) via PHPUnit
+# Set environment
+      env:
+        SESSION_DRIVER: array
+
+      run: vendor/bin/phpunit --testdox
+
+    - name: Execute Code Static Analysis (PHP Stan + Larastan)
+      run: |
+        composer require --dev nunomaduro/larastan
+        vendor/bin/phpstan analyse src -c ./vendor/nunomaduro/larastan/extension.neon  --level=4 --no-progress
