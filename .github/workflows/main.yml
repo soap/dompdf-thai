@@ -25,10 +25,13 @@ jobs:
         include:
           - laravel:  10.*
             testbench: 8.*
+            php-versions: 8.1
           - laravel:  9.*
             testbench: 7.*
+            php-versions: 8.0
           - laravel:  8.*
             testbench: 6.*
+            php-versions: 7.4
 
     name: P${{ matrix.php-versions }} - L${{ matrix.laravel }} - ${{ matrix.dependency-stability }} - ${{ matrix.operating-system}}
 
