@@ -4,7 +4,7 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/soap/dompdf-thai.svg?style=flat-square)](https://packagist.org/packages/soap/dompdf-thai)
 ![GitHub Actions](https://github.com/soap/dompdf-thai/actions/workflows/main.yml/badge.svg)
 
-Add thai font support for barryvdh/laravel-dompdf package. Currently only THSanrabanNew is included. 
+Add thai font support for barryvdh/laravel-dompdf package. Currently only THSanrabunNew is included. 
 
 ## Installation
 
